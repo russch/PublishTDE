@@ -15,7 +15,7 @@ var fs = require('fs');
 var admin = {username: "admin", password: "adminpw"};
 
 //location of the server
-var tableauServer = "http://russellchri05e1"; 
+var tableauServer = "http://foo"; 
 
 //variable to hold auth token of an admin user so we can do stuff easily
 var adminAuthToken;
