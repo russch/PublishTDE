@@ -1,0 +1,10 @@
+{
+  "name": "add-many-tableau-users",
+  "description": "Adds tons of users via the REST API",
+  "version": "0.0.1",
+  "dependencies": {
+    "xml-writer": "1.x",
+    "node-jsxml": "0.x",
+    "request": "2.x"
+  }
+}
