@@ -5,6 +5,7 @@
 var jsxml = require("node-jsxml");
 var XMLWriter = require('xml-writer');
 var request = require("request");
+//var Buffer = require("Buffer/").Buffer;
 
 // File streaming
 var fs = require('fs');
@@ -15,7 +16,7 @@ var fs = require('fs');
 var admin = {username: "admin", password: "adminpw"};
 
 //location of the server
-var tableauServer = "http://foo"; 
+var tableauServer = "http://russellchri05e1"; 
 
 //variable to hold auth token of an admin user so we can do stuff easily
 var adminAuthToken;
@@ -30,7 +31,8 @@ var t = d.toLocaleTimeString();
 
 // Simple upload of a TDE file < 64MB inline in the request.
 var simplePublish = function(callback) {
-        //Site ID of your 'REST' site. Lookup with REST API or PGAdmin3                       
+        
+       //Site ID of your 'REST' site. Lookup with REST API or PGAdmin3                       
         var siteID = '9037bbd3-c08f-413f-a213-c3e126950cba';
 
         //First, build the XML for the POST
@@ -46,18 +48,27 @@ var simplePublish = function(callback) {
                 .endElement();
         console.log(dsXml.toString());
     
-        
-        
+    var xmlRequestSize = Buffer.byteLength(dsXml.toString());
+
+    data = fs.readFileSync("Stock Data.tde")
+    var fileRequestSize = Buffer.byteLength(data);
+
+    
+    console.log(xmlRequestSize);
+    console.log(fileRequestSize);   
+    
         request( 
             {
                 method: 'POST',
-                //proxy:'http://localhost:8888', // So I can pick up calls in Charles and/or Fiddler
-                //preambleCRLF: false, //tried 'true' as well, no difference
-                //postambleCRLF: false, //tried 'true' as well, no difference
+                proxy:'http://localhost:8888', // So I can pick up calls in Charles and/or Fiddler
+                preambleCRLF: true, //tried 'true' as well, no difference
+                postambleCRLF: true, //tried 'true' as well, no difference
                 uri:  tableauServer + '/api/2.0/sites/' + siteID + '/datasources?overwrite=true',
+                contentlength: fileRequestSize + xmlRequestSize,
                 headers: {
                     'Content-Type': "multipart/mixed",
-                    'X-Tableau-Auth': adminAuthToken
+                    'X-Tableau-Auth': adminAuthToken,
+                    'Content-Length':  fileRequestSize + xmlRequestSize
                 },
                 multipart: [
                   {
@@ -66,9 +77,9 @@ var simplePublish = function(callback) {
                      body: dsXml.toString()
                   },
                   { 
-                    'Content-Disposition': "name='tableau_datasource'; filename='Stock Data.tde'",
+                    'Content-Disposition': "name='tableau_datasource';filename='BloodTesting.tde'",
                     'Content-Type': 'application/octet-stream',
-                    body: fs.createReadStream('Stock Data.tde',{encoding: 'base64'}) //tried ascii, utf8 as well
+                     body: fs.createReadStream('Stock Data.tde')//, {encoding : 'binary'})
                   }
 
                 ]
