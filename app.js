@@ -5,7 +5,8 @@
 var jsxml = require("node-jsxml");
 var XMLWriter = require('xml-writer');
 var request = require("request");
-//var Buffer = require("Buffer/").Buffer;
+var http = require("http");
+var FormData = require('form-data');
 
 // File streaming
 var fs = require('fs');
@@ -13,13 +14,13 @@ var fs = require('fs');
 //Variables we'll use throughout the app
 
 // admin username & pw: OF COURSE you won't hard-code these in the real world:
-var admin = {username: "admin", password: "adminpw"};
-
+var admin = {username: "admin", password: "adminPassWord"};
 //location of the server
-var tableauServer = "http://russellchri05e1"; 
+var tableauServer = "localhost"; 
 
 //variable to hold auth token of an admin user so we can do stuff easily
 var adminAuthToken;
+
 
 //date and time
 
@@ -31,74 +32,62 @@ var t = d.toLocaleTimeString();
 
 // Simple upload of a TDE file < 64MB inline in the request.
 var simplePublish = function(callback) {
-        
-       //Site ID of your 'REST' site. Lookup with REST API or PGAdmin3                       
-        var siteID = '9037bbd3-c08f-413f-a213-c3e126950cba';
+        //Site ID of your 'REST' site. Lookup with REST API or PGAdmin3                       
+        var siteID = '98823511-cfc3-4e24-9790-27e1855fed75';
 
         //First, build the XML for the POST
         var dsXml = new XMLWriter();
         dsXml.startElement('tsRequest')
                     .startElement('datasource')
-                    .writeAttribute('name', 'Stock Data')
+                    .writeAttribute('name', 'Some Data Source Name')
                         .startElement('project')
                             // ID of the Default Project in REST site. Lookup with REST API or PGAdmin3
-                            .writeAttribute('id', 'efaffc44-89ec-11e3-972e-0bebbf58ccb0')
+                            .writeAttribute('id', 'a8a1c0c6-0e49-4243-a271-d49f79c7ccdb')
                         .endElement()
                     .endElement()
                 .endElement();
         console.log(dsXml.toString());
     
-    var xmlRequestSize = Buffer.byteLength(dsXml.toString());
+    var CRLF = '\r\n';
+    var form = new FormData();
 
-    data = fs.readFileSync("Stock Data.tde")
-    var fileRequestSize = Buffer.byteLength(data);
 
-    
-    console.log(xmlRequestSize);
-    console.log(fileRequestSize);   
-    
-        request( 
-            {
-                method: 'POST',
-                proxy:'http://localhost:8888', // So I can pick up calls in Charles and/or Fiddler
-                preambleCRLF: true, //tried 'true' as well, no difference
-                postambleCRLF: true, //tried 'true' as well, no difference
-                uri:  tableauServer + '/api/2.0/sites/' + siteID + '/datasources?overwrite=true',
-                contentlength: fileRequestSize + xmlRequestSize,
-                headers: {
-                    'Content-Type': "multipart/mixed",
-                    'X-Tableau-Auth': adminAuthToken,
-                    'Content-Length':  fileRequestSize + xmlRequestSize
-                },
-                multipart: [
-                  {
-                    'Content-Disposition': "name='request_payload'",
-                    'Content-Type': 'text/xml',
-                     body: dsXml.toString()
-                  },
-                  { 
-                    'Content-Disposition': "name='tableau_datasource';filename='BloodTesting.tde'",
-                    'Content-Type': 'application/octet-stream',
-                     body: fs.createReadStream('Stock Data.tde')//, {encoding : 'binary'})
-                  }
+    form.append('request_payload', dsXml.toString(), {contentType: 'text/xml'});
+    form.append('tableau_datasource', fs.createReadStream('c:\someFile.tde'),{contentType: 'application/octet-stream'});
 
-                ]
-            },
-            function(err, response, body) {
-                if(err) {
-                    callback(err);
-                    return;
-                } else {
-                    //If the request was succesful we get xml back that contains the id and name of the added user.
-                    console.log('success', body);
-                }
-                callback(null);
-                return;
+    form.submit(
+        {
+            host: tableauServer,
+            //port: 8888, // for proxy
+            path: '/api/2.0/sites/' + siteID + '/datasources?overwrite=true',
+            //method: 'POST',
+            headers: {
+                'X-Tableau-Auth': adminAuthToken, 
+                'Content-Type': 'multipart/mixed; boundary=' + form.getBoundary()
             }
-        );	
-    
+        }, function(err, res) {
+              if (err) throw err;
+             console.log(res.statusCode);
+             var str = '';
+              //another chunk of data has been recieved, so append it to `str`
+
+              res.on('data', function (chunk) {
+                str += chunk;
+              });
+
+              //the whole response has been recieved, so we just print it out here
+              res.on('end', function () {
+                console.log(str);
+
+              });
+
+        });
         
-        callback(null);
+
+
+
+    callback(null);   
+        
     }
 
 // Get a token for authenticationf createUser requests
@@ -109,7 +98,7 @@ var adminLogin = function (callback){
 		.writeAttribute('password', admin.password).startElement('site').writeAttribute('contentUrl', 'rest');
 	request.post( 
 		{
-			url: tableauServer + '/api/2.0/auth/signin',
+			url: "http://" + tableauServer + '/api/2.0/auth/signin',
 			body: loginxml.toString(),
 			headers: {'Content-Type': 'text/xml'}
 		},
